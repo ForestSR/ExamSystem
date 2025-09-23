@@ -43,21 +43,58 @@ Exam_new/
 
 项目使用MongoDB数据库，您需要：
 
-1. **安装MongoDB**
-   - 下载并安装MongoDB Community Server
-   - 官方下载地址：https://www.mongodb.com/try/download/community
-   - 选择Windows版本下载
+**1.下载并解压MongoDB安装包**
+   - MongoDB安装包下载地址：https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-5.0.30.zip
+   - 下载并解压压缩包
 
-2. **启动MongoDB服务**
-   - 安装后，MongoDB通常会自动启动服务
-   - 如需手动启动，运行：`net start MongoDB`
+**2.配置**
+   - 将bin目录地址添加到系统环境变量
+   - 命令提示符输入下面的命令验证是否配置成功
+   ```bash
+   mongo --version
+   ```
+   - 在`mongodb-win32-x86_64-windows-5.0.30`目录下创建`data`文件夹，`logs`文件夹，和`conf`文件夹
+   - 在`data`目录下创建`db`文件夹
+   - 在`logs`目录下创建`mongodb.log`文件
+   - 在`conf`目录下创建配置文件mongodb.conf
+   - 用记事本打开`mongodb.conf`，添加以下内容，注意`dbPath`和`path`路径的修改
+   ```bash
+   storage:
+      dbPath: D:\Downloads\mongodb-win32-x86_64-windows-5.0.30\data\db
+   systemLog:
+      destination: file
+      path: D:\Downloads\mongodb-win32-x86_64-windows-5.0.30\logs\mongodb.log
+      logAppend: true
+   net:
+      port: 27017
+      bindIp: 0.0.0.0
+   ```
 
-3. **数据库连接**
+**3.启动MongoDB服务**
+   ```bash
+   mongod -f <mongodb.conf的文件地址>
+   ```
+   例如我的是
+   ```bash
+   mongod -f D:\Downloads\mongodb-win32-x86_64-windows-5.0.30\conf\mongodb.conf
+   ```
+
+**4.数据库连接**
    - 默认连接地址：`mongodb://127.0.0.1:27017/exam_interview`
    - 数据库名称：`exam_interview`
    - 无需手动创建数据库，应用启动时会自动创建
+  
+**5.数据库可视化**
+   - 下载MongoDB Compass。下载地址：https://www.mongodb.com/try/download/compass
+   - 点击`MongoDBCompass.exe`启动
+   - 点击`Add new connection`添加连接，不用配置直接保存即可自动连接
 
-## 安装和运行
+## 启动程序
+
+### MongoDB启动
+```bash
+mongod -f <mongodb.conf的文件地址>
+```
 
 ### 后端启动
 
