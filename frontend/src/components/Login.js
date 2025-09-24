@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Login = ({ onLogin }) => {
+  const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    phone: ''
   });
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -42,55 +45,83 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
-      <h1 className="text-center">公考面试系统</h1>
-      <h2 className="text-center">{isRegister ? '注册' : '登录'}</h2>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>用户名:</label>
-          <input
-            type="text"
-            name="username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-          />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff' }}>
+      <div className="login-container">
+        {/* 返回首页按钮 */}
+        <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => navigate('/')}
+            style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}
+          >
+            ← 返回首页
+          </button>
         </div>
+
+        <h1 className="text-center">公考面试系统</h1>
+        <h2 className="text-center">{isRegister ? '注册' : '登录'}</h2>
         
-        <div className="form-group">
-          <label>密码:</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>用户名:</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label>密码:</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          
+          {isRegister && (
+            <div className="form-group">
+              <label>手机号:</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="请输入手机号"
+                required
+              />
+            </div>
+          )}
+          
+          <button type="submit" className="btn">
+            {isRegister ? '注册' : '登录'}
+          </button>
+          
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setMessage('');
+              setFormData({ username: '', password: '', phone: '' });
+            }}
+          >
+            {isRegister ? '已有账号？登录' : '没有账号？注册'}
+          </button>
+        </form>
         
-        <button type="submit" className="btn">
-          {isRegister ? '注册' : '登录'}
-        </button>
-        
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => {
-            setIsRegister(!isRegister);
-            setMessage('');
-            setFormData({ username: '', password: '' });
-          }}
-        >
-          {isRegister ? '已有账号？登录' : '没有账号？注册'}
-        </button>
-      </form>
-      
-      {message && (
-        <div className={isError ? 'error' : 'success'}>
-          {message}
-        </div>
-      )}
+        {message && (
+          <div className={isError ? 'error' : 'success'}>
+            {message}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

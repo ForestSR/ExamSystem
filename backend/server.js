@@ -22,6 +22,11 @@ mongoose.connect('mongodb://127.0.0.1:27017/exam_interview', {
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  phone: { type: String, default: '' },
+  email: { type: String, default: '' },
+  realName: { type: String, default: '' },
+  nickname: { type: String, default: '' },
+  avatar: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -48,7 +53,7 @@ const authenticateToken = (req, res, next) => {
 // 注册接口
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, phone } = req.body;
     
     // 检查用户是否已存在
     const existingUser = await User.findOne({ username });
@@ -62,7 +67,8 @@ app.post('/api/register', async (req, res) => {
     // 创建新用户
     const user = new User({
       username,
-      password: hashedPassword
+      password: hashedPassword,
+      phone: phone || ''
     });
 
     await user.save();
@@ -106,9 +112,66 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// 受保护的路由示例
-app.get('/api/profile', authenticateToken, (req, res) => {
-  res.json({ message: '用户信息', user: req.user });
+// 获取用户信息
+app.get('/api/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    res.json({ 
+      message: '获取用户信息成功', 
+      user: {
+        id: user._id,
+        username: user.username,
+        phone: user.phone,
+        email: user.email,
+        realName: user.realName,
+        nickname: user.nickname,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+});
+
+// 更新用户信息
+app.put('/api/profile', authenticateToken, async (req, res) => {
+  try {
+    const { phone, email, realName, nickname, avatar } = req.body;
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      { 
+        phone: phone || '',
+        email: email || '',
+        realName: realName || '',
+        nickname: nickname || '',
+        avatar: avatar || ''
+      },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+
+    res.json({ 
+      message: '用户信息更新成功', 
+      user: {
+        id: updatedUser._id,
+        username: updatedUser.username,
+        phone: updatedUser.phone,
+        email: updatedUser.email,
+        realName: updatedUser.realName,
+        nickname: updatedUser.nickname,
+        avatar: updatedUser.avatar
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
 });
 
 app.listen(PORT, () => {

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Interview = ({ onLogout }) => {
+  const navigate = useNavigate();
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef(null);
@@ -109,13 +111,23 @@ const Interview = ({ onLogout }) => {
   };
 
   return (
-    <div className="interview-container">
-      <div className="header">
-        <h1>面试系统</h1>
-        <button onClick={handleLogout} className="btn btn-danger">
-          退出登录
-        </button>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff' }}>
+      <div className="interview-container">
+        <div className="header">
+          <div>
+            <button
+              onClick={() => navigate('/')}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.9rem', padding: '0.5rem 1rem', marginRight: '1rem' }}
+            >
+              ← 返回首页
+            </button>
+            <h1 style={{ display: 'inline-block', margin: 0 }}>面试系统</h1>
+          </div>
+          <button onClick={handleLogout} className="btn btn-danger">
+            退出登录
+          </button>
+        </div>
 
       <div className="video-container">
         <h3>摄像头预览</h3>
@@ -188,6 +200,7 @@ const Interview = ({ onLogout }) => {
           {isCameraOn ? '已开启' : '已关闭'}
         </strong></p>
         <p>这里可以添加更多面试相关功能...</p>
+      </div>
       </div>
     </div>
   );

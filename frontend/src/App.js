@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './components/Home';
 import Login from './components/Login';
 import Interview from './components/Interview';
+import Profile from './components/Profile';
 import './App.css';
 
 function App() {
@@ -29,11 +31,23 @@ function App() {
       <div className="App">
         <Routes>
           <Route
+            path="/"
+            element={<Home isLoggedIn={isLoggedIn} />}
+          />
+          <Route
             path="/login"
             element={
               isLoggedIn ? 
-              <Navigate to="/interview" /> : 
+              <Navigate to="/profile" /> : 
               <Login onLogin={handleLogin} />
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              isLoggedIn ? 
+              <Profile onLogout={handleLogout} /> : 
+              <Navigate to="/login" />
             }
           />
           <Route
@@ -43,10 +57,6 @@ function App() {
               <Interview onLogout={handleLogout} /> : 
               <Navigate to="/login" />
             }
-          />
-          <Route
-            path="/"
-            element={<Navigate to={isLoggedIn ? "/interview" : "/login"} />}
           />
         </Routes>
       </div>
