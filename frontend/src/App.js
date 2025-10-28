@@ -4,6 +4,8 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Interview from './components/Interview';
 import Profile from './components/Profile';
+import Interviewee from './components/Interviewee';
+import Interviewer from './components/Interviewer';
 import './App.css';
 
 function App() {
@@ -55,6 +57,22 @@ function App() {
             element={
               isLoggedIn ? 
               <Interview onLogout={handleLogout} /> : 
+              <Navigate to="/login" />
+            }
+          />
+          <Route
+            path="/interviewee"
+            element={
+              isLoggedIn ? 
+              <Interviewee onLogout={handleLogout} /> : 
+              <Navigate to="/login" />
+            }
+          />
+          <Route
+            path="/interviewer"
+            element={
+              isLoggedIn ? 
+              <Interviewer onLogout={handleLogout} /> : 
               <Navigate to="/login" />
             }
           />

@@ -226,6 +226,339 @@ body {
   }
 }
 
+/* 面试入口悬停选项样式 */
+.interview-card {
+  position: relative;
+}
+
+.interview-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.interview-options {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  margin-top: 0.5rem;
+  min-width: 200px;
+}
+
+.interview-option-btn {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.interview-option-btn:hover {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+  transform: translateY(-2px);
+}
+
+.interviewee-btn:hover {
+  background: #28a745;
+  border-color: #28a745;
+}
+
+.interviewer-btn:hover {
+  background: #17a2b8;
+  border-color: #17a2b8;
+}
+
+/* 面试者界面样式 */
+.interviewee-container {
+  max-width: 600px;
+}
+
+.interview-info {
+  background: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.interview-info p {
+  margin: 0;
+  color: #004085;
+  font-size: 0.95rem;
+}
+
+.interview-tips {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* 面试官界面样式 */
+.interviewer-sidebar {
+  width: 320px;
+  background: #f8f9fa;
+  border-right: 2px solid #e9ecef;
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.interviewer-sidebar h2 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #007bff;
+}
+
+.stages-list {
+  margin-bottom: 2rem;
+}
+
+.stage-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.stage-item.active {
+  border-color: #007bff;
+  background: #e7f3ff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+}
+
+.stage-item.completed {
+  border-color: #28a745;
+  background: #d4edda;
+}
+
+.stage-number {
+  width: 32px;
+  height: 32px;
+  background: #6c757d;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.stage-item.active .stage-number {
+  background: #007bff;
+}
+
+.stage-item.completed .stage-number {
+  background: #28a745;
+}
+
+.stage-info {
+  flex: 1;
+}
+
+.stage-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.stage-score {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.stage-status {
+  color: #007bff;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.score-section {
+  background: white;
+  padding: 1.5rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.score-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.current-stage-name {
+  color: #007bff;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.score-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+.score-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.score-unit {
+  font-weight: bold;
+  color: #666;
+}
+
+.navigation-buttons {
+  margin-top: 1rem;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #218838;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.interviewer-container {
+  max-width: 700px;
+}
+
+/* 总评分弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #007bff;
+}
+
+.final-scores {
+  margin-bottom: 2rem;
+}
+
+.score-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.score-item span {
+  font-size: 1rem;
+  color: #666;
+}
+
+.score-item strong {
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.score-divider {
+  height: 2px;
+  background: #e9ecef;
+  margin: 1rem 0;
+}
+
+.score-item.total-score {
+  background: #e7f3ff;
+  border: 2px solid #007bff;
+  padding: 1rem;
+  font-size: 1.1rem;
+}
+
+.total-score-value {
+  font-size: 1.8rem !important;
+  color: #007bff !important;
+}
+
+.modal-buttons {
+  text-align: center;
+}
+
+.modal-buttons .btn {
+  min-width: 200px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
 /* 个人中心样式 */
 .profile-container {
   background: white;
