@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const Home = ({ isLoggedIn }) => {
+const Home = ({ isLoggedIn, userRole }) => {
   const navigate = useNavigate();
-  const [showInterviewOptions, setShowInterviewOptions] = useState(false);
 
   const handleMenuClick = (path) => {
-    if (!isLoggedIn && (path === '/feedback' || path === '/suggestions' || path === '/written-exam' || path === '/interviewee' || path === '/interviewer')) {
+    if (!isLoggedIn && (path === '/feedback' || path === '/suggestions' || path === '/written-exam' || path === '/interview')) {
       navigate('/login');
-    } else if (path === '/interviewee') {
-      navigate('/interviewee');
-    } else if (path === '/interviewer') {
-      navigate('/interviewer');
+    } else if (path === '/interview') {
+      // 根据用户角色跳转到对应的面试入口
+      if (userRole === 'interviewer') {
+        navigate('/interviewer');
+      } else {
+        navigate('/interviewee');
+      }
     } else if (path === '/login') {
       navigate('/login');
     } else if (path === '/profile') {
@@ -57,39 +59,10 @@ const Home = ({ isLoggedIn }) => {
             <p>在线笔试考试</p>
           </div>
 
-          <div 
-            className="interview-container"
-            onMouseEnter={() => setShowInterviewOptions(true)}
-            onMouseLeave={() => setShowInterviewOptions(false)}
-          >
-            <div className="function-card active interview-card">
-              <div className="function-icon">🎥</div>
-              <h3>面试入口</h3>
-              <p>视频面试系统</p>
-            </div>
-            
-            {showInterviewOptions && (
-              <div className="interview-options">
-                <button 
-                  className="interview-option-btn interviewee-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMenuClick('/interviewee');
-                  }}
-                >
-                  👨‍🎓 面试者入口
-                </button>
-                <button 
-                  className="interview-option-btn interviewer-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMenuClick('/interviewer');
-                  }}
-                >
-                  👔 面试官入口
-                </button>
-              </div>
-            )}
+          <div className="function-card active" onClick={() => handleMenuClick('/interview')}>
+            <div className="function-icon">🎥</div>
+            <h3>面试入口</h3>
+            <p>视频面试系统</p>
           </div>
 
           <div className="function-card" onClick={() => handleMenuClick('/feedback')}>

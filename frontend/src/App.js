@@ -10,22 +10,29 @@ import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const role = localStorage.getItem('userRole');
     if (token) {
       setIsLoggedIn(true);
+      setUserRole(role || 'interviewee');
     }
   }, []);
 
-  const handleLogin = (token) => {
+  const handleLogin = (token, role) => {
     localStorage.setItem('token', token);
+    localStorage.setItem('userRole', role);
     setIsLoggedIn(true);
+    setUserRole(role);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
     setIsLoggedIn(false);
+    setUserRole('');
   };
 
   return (
@@ -34,7 +41,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<Home isLoggedIn={isLoggedIn} />}
+            element={<Home isLoggedIn={isLoggedIn} userRole={userRole} />}
           />
           <Route
             path="/login"

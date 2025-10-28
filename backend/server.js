@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema({
   realName: { type: String, default: '' },
   nickname: { type: String, default: '' },
   avatar: { type: String, default: '' },
+  role: { type: String, enum: ['interviewee', 'interviewer'], default: 'interviewee' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -53,7 +54,7 @@ const authenticateToken = (req, res, next) => {
 // 注册接口
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, password, phone } = req.body;
+    const { username, password, phone, role } = req.body;
     
     // 检查用户是否已存在
     const existingUser = await User.findOne({ username });
@@ -68,7 +69,8 @@ app.post('/api/register', async (req, res) => {
     const user = new User({
       username,
       password: hashedPassword,
-      phone: phone || ''
+      phone: phone || '',
+      role: role || 'interviewee'
     });
 
     await user.save();
@@ -97,7 +99,7 @@ app.post('/api/login', async (req, res) => {
 
     // 生成JWT令牌
     const token = jwt.sign(
-      { userId: user._id, username: user.username },
+      { userId: user._id, username: user.username, role: user.role },
       'your-secret-key',
       { expiresIn: '24h' }
     );
@@ -105,7 +107,8 @@ app.post('/api/login', async (req, res) => {
     res.json({ 
       message: '登录成功',
       token,
-      user: { id: user._id, username: user.username }
+      role: user.role,
+      user: { id: user._id, username: user.username, role: user.role }
     });
   } catch (error) {
     res.status(500).json({ message: '服务器错误', error: error.message });

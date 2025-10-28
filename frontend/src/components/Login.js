@@ -8,7 +8,8 @@ const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    phone: ''
+    phone: '',
+    role: 'interviewee' // 默认为面试者
   });
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -30,7 +31,7 @@ const Login = ({ onLogin }) => {
       setIsError(false);
       
       if (!isRegister && response.data.token) {
-        onLogin(response.data.token);
+        onLogin(response.data.token, response.data.role);
       } else if (isRegister) {
         // 注册成功后切换到登录
         setTimeout(() => {
@@ -86,17 +87,40 @@ const Login = ({ onLogin }) => {
           </div>
           
           {isRegister && (
-            <div className="form-group">
-              <label>手机号:</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="请输入手机号"
-                required
-              />
-            </div>
+            <>
+              <div className="form-group">
+                <label>手机号:</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="请输入手机号"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>注册身份:</label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                  required
+                >
+                  <option value="interviewee">面试者</option>
+                  <option value="interviewer">面试官</option>
+                </select>
+              </div>
+            </>
           )}
           
           <button type="submit" className="btn">
@@ -109,7 +133,7 @@ const Login = ({ onLogin }) => {
             onClick={() => {
               setIsRegister(!isRegister);
               setMessage('');
-              setFormData({ username: '', password: '', phone: '' });
+              setFormData({ username: '', password: '', phone: '', role: 'interviewee' });
             }}
           >
             {isRegister ? '已有账号？登录' : '没有账号？注册'}
