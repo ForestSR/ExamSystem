@@ -3,9 +3,18 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
 const PORT = process.env.PORT || 5000;
 
 // 中间件
@@ -32,6 +41,22 @@ const userSchema = new mongoose.Schema({
 });
 
 const User = mongoose.model('User', userSchema);
+
+// 房间模型
+const roomSchema = new mongoose.Schema({
+  roomId: { type: String, required: true, unique: true },
+  interviewTime: { type: Date, required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  status: { type: String, enum: ['waiting', 'active', 'completed'], default: 'waiting' },
+  participants: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    role: { type: String, enum: ['interviewee', 'interviewer'] },
+    joinedAt: { type: Date, default: Date.now }
+  }],
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Room = mongoose.model('Room', roomSchema);
 
 // 认证中间件
 const authenticateToken = (req, res, next) => {
@@ -177,7 +202,117 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+// 创建房间
+app.post('/api/rooms/create', authenticateToken, async (req, res) => {
+  try {
+    const { roomId, interviewTime } = req.body;
+    
+    if (!roomId || !interviewTime) {
+      return res.status(400).json({ message: '房间号和面试时间不能为空' });
+    }
+
+    // 检查房间号是否已存在
+    const existingRoom = await Room.findOne({ roomId });
+    if (existingRoom) {
+      return res.status(400).json({ message: '房间号已存在' });
+    }
+
+    // 创建新房间
+    const room = new Room({
+      roomId,
+      interviewTime: new Date(interviewTime),
+      createdBy: req.user.userId,
+      participants: [{
+        userId: req.user.userId,
+        role: req.user.role
+      }]
+    });
+
+    await room.save();
+    res.status(201).json({ message: '房间创建成功', room });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+});
+
+// 获取房间信息
+app.get('/api/rooms/:roomId', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const room = await Room.findOne({ roomId }).populate('createdBy', 'username');
+    
+    if (!room) {
+      return res.status(404).json({ message: '房间不存在' });
+    }
+
+    res.json({ message: '获取房间信息成功', room });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+});
+
+// 加入房间
+app.post('/api/rooms/join', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.body;
+    
+    const room = await Room.findOne({ roomId });
+    if (!room) {
+      return res.status(404).json({ message: '房间不存在' });
+    }
+
+    // 检查用户是否已在房间中
+    const alreadyJoined = room.participants.some(
+      p => p.userId.toString() === req.user.userId
+    );
+
+    if (!alreadyJoined) {
+      room.participants.push({
+        userId: req.user.userId,
+        role: req.user.role
+      });
+      await room.save();
+    }
+
+    res.json({ message: '加入房间成功', room });
+  } catch (error) {
+    res.status(500).json({ message: '服务器错误', error: error.message });
+  }
+});
+
+// Socket.io 连接处理
+io.on('connection', (socket) => {
+  console.log('用户连接:', socket.id);
+
+  // 加入房间
+  socket.on('join-room', ({ roomId, userId, role }) => {
+    socket.join(roomId);
+    socket.to(roomId).emit('user-joined', { userId, role, socketId: socket.id });
+    console.log(`用户 ${userId} (${role}) 加入房间 ${roomId}`);
+  });
+
+  // WebRTC 信令 - offer
+  socket.on('offer', ({ roomId, offer, to }) => {
+    socket.to(to).emit('offer', { offer, from: socket.id });
+  });
+
+  // WebRTC 信令 - answer
+  socket.on('answer', ({ roomId, answer, to }) => {
+    socket.to(to).emit('answer', { answer, from: socket.id });
+  });
+
+  // WebRTC 信令 - ice candidate
+  socket.on('ice-candidate', ({ roomId, candidate, to }) => {
+    socket.to(to).emit('ice-candidate', { candidate, from: socket.id });
+  });
+
+  // 断开连接
+  socket.on('disconnect', () => {
+    console.log('用户断开连接:', socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`服务器运行在端口 ${PORT}`);
   console.log('MongoDB连接地址: mongodb://127.0.0.1:27017/exam_interview');
 });

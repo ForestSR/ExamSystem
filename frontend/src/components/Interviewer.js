@@ -1,12 +1,21 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import io from 'socket.io-client';
+import Peer from 'simple-peer';
 
 const Interviewer = ({ onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [roomId, setRoomId] = useState('');
+  const [isInRoom, setIsInRoom] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [cameraError, setCameraError] = useState('');
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
+  const [message, setMessage] = useState('');
+  
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const socketRef = useRef(null);
+  const peerRef = useRef(null);
   
   // 面试流程状态
   const [currentStage, setCurrentStage] = useState(0);
@@ -24,88 +33,176 @@ const Interviewer = ({ onLogout }) => {
     { id: 'professionalKnowledge', name: '专业知识考察', key: 'professionalKnowledge' }
   ];
 
-  // 停止摄像头
-  const stopCamera = useCallback(() => {
-    console.log('正在关闭摄像头...');
-    
-    if (streamRef.current) {
-      const tracks = streamRef.current.getTracks();
-      tracks.forEach(track => {
-        track.stop();
-        console.log('摄像头轨道已停止:', track.kind);
-      });
-      streamRef.current = null;
+  // 从URL获取房间号
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const room = params.get('room');
+    if (room) {
+      setRoomId(room);
     }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-      videoRef.current.load();
-      console.log('清除video srcObject');
-    }
-    
-    setIsCameraOn(false);
-    setCameraError('');
-  }, []);
+  }, [location]);
 
-  // 组件卸载时关闭摄像头
   useEffect(() => {
     return () => {
-      stopCamera();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      if (peerRef.current) {
+        peerRef.current.destroy();
+      }
     };
-  }, [stopCamera]);
-
-  // 当video元素准备好且有流时，设置srcObject
-  useEffect(() => {
-    if (isCameraOn && streamRef.current && videoRef.current) {
-      videoRef.current.srcObject = streamRef.current;
-      videoRef.current.play().catch(error => {
-        console.log('视频播放失败:', error.message);
-      });
-    }
-  }, [isCameraOn]);
+  }, []);
 
   const startCamera = async () => {
     try {
-      setCameraError('');
-      
-      if (streamRef.current) {
-        stopCamera();
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 },
-          facingMode: 'user'
-        }, 
-        audio: false 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+        audio: true
       });
       
-      streamRef.current = stream;
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
       setIsCameraOn(true);
-      
+      setMessage('摄像头已开启');
     } catch (error) {
-      console.error('摄像头访问失败:', error);
-      setCameraError(`无法访问摄像头: ${error.message}`);
-      setIsCameraOn(false);
+      console.error('开启摄像头失败:', error);
+      setMessage('无法访问摄像头，请检查权限设置');
     }
   };
 
-  const toggleCamera = () => {
-    if (isCameraOn) {
-      stopCamera();
-    } else {
-      startCamera();
+  const stopCamera = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
     }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    setIsCameraOn(false);
+    setMessage('摄像头已关闭');
   };
 
-  const handleLogout = useCallback(() => {
+  const joinRoom = async () => {
+    if (!roomId.trim()) {
+      setMessage('请输入房间号');
+      return;
+    }
+
+    if (!isCameraOn) {
+      await startCamera();
+    }
+
+    socketRef.current = io('http://localhost:5000');
+
+    socketRef.current.on('connect', () => {
+      console.log('Socket连接成功');
+      const token = localStorage.getItem('token');
+      const userId = JSON.parse(atob(token.split('.')[1])).userId;
+      
+      socketRef.current.emit('join-room', {
+        roomId: roomId,
+        userId: userId,
+        role: 'interviewer'
+      });
+      
+      setIsInRoom(true);
+      setMessage(`已加入房间: ${roomId}`);
+    });
+
+    socketRef.current.on('user-joined', ({ socketId, role }) => {
+      if (role === 'interviewee') {
+        setMessage('面试者已加入，正在连接...');
+        createPeerConnection(socketId, true);
+      }
+    });
+
+    socketRef.current.on('offer', ({ offer, from }) => {
+      setMessage('收到连接请求...');
+      createPeerConnection(from, false, offer);
+    });
+
+    socketRef.current.on('answer', ({ answer }) => {
+      if (peerRef.current) {
+        peerRef.current.signal(answer);
+      }
+    });
+
+    socketRef.current.on('ice-candidate', ({ candidate }) => {
+      if (peerRef.current && candidate) {
+        peerRef.current.signal(candidate);
+      }
+    });
+  };
+
+  const createPeerConnection = (targetSocketId, initiator, offerSignal = null) => {
+    const peer = new Peer({
+      initiator: initiator,
+      trickle: false,
+      stream: localStreamRef.current,
+    });
+
+    peer.on('signal', (signal) => {
+      if (initiator) {
+        socketRef.current.emit('offer', {
+          roomId: roomId,
+          offer: signal,
+          to: targetSocketId
+        });
+      } else {
+        socketRef.current.emit('answer', {
+          roomId: roomId,
+          answer: signal,
+          to: targetSocketId
+        });
+      }
+    });
+
+    peer.on('stream', (remoteStream) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        setMessage('视频连接成功！');
+      }
+    });
+
+    peer.on('error', (err) => {
+      console.error('Peer连接错误:', err);
+      setMessage('视频连接失败，请重试');
+    });
+
+    if (offerSignal) {
+      peer.signal(offerSignal);
+    }
+
+    peerRef.current = peer;
+  };
+
+  const leaveRoom = () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+    if (peerRef.current) {
+      peerRef.current.destroy();
+    }
     stopCamera();
-    setTimeout(() => {
-      onLogout();
-    }, 200);
-  }, [stopCamera, onLogout]);
+    setIsInRoom(false);
+    setRoomId('');
+    setMessage('已离开房间');
+    
+    // 重置评分状态
+    setCurrentStage(0);
+    setScores({
+      selfIntroduction: 0,
+      resumeQA: 0,
+      professionalKnowledge: 0
+    });
+    setTempScore(0);
+    setShowFinalScore(false);
+  };
 
   // 保存当前阶段评分
   const handleSaveScore = () => {
@@ -160,145 +257,197 @@ const Interviewer = ({ onLogout }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#ffffff' }}>
-      {/* 侧边栏 */}
-      <div className="interviewer-sidebar">
-        <h2>面试流程</h2>
-        <div className="stages-list">
-          {stages.map((stage, index) => (
-            <div 
-              key={stage.id} 
-              className={`stage-item ${currentStage === index ? 'active' : ''} ${scores[stage.key] > 0 ? 'completed' : ''}`}
-            >
-              <div className="stage-number">{index + 1}</div>
-              <div className="stage-info">
-                <h4>{stage.name}</h4>
-                {scores[stage.key] > 0 && (
-                  <span className="stage-score">得分: {scores[stage.key]}分</span>
-                )}
-                {currentStage === index && scores[stage.key] === 0 && (
-                  <span className="stage-status">进行中...</span>
-                )}
+      {/* 侧边栏 - 只在进入房间后显示 */}
+      {isInRoom && (
+        <div className="interviewer-sidebar">
+          <h2>面试流程</h2>
+          <div className="stages-list">
+            {stages.map((stage, index) => (
+              <div 
+                key={stage.id} 
+                className={`stage-item ${currentStage === index ? 'active' : ''} ${scores[stage.key] > 0 ? 'completed' : ''}`}
+              >
+                <div className="stage-number">{index + 1}</div>
+                <div className="stage-info">
+                  <h4>{stage.name}</h4>
+                  {scores[stage.key] > 0 && (
+                    <span className="stage-score">得分: {scores[stage.key]}分</span>
+                  )}
+                  {currentStage === index && scores[stage.key] === 0 && (
+                    <span className="stage-status">进行中...</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="score-section">
-          <h3>当前阶段评分</h3>
-          <p className="current-stage-name">{stages[currentStage].name}</p>
-          <div className="score-input-group">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={tempScore}
-              onChange={(e) => setTempScore(Number(e.target.value))}
-              placeholder="输入分数(0-100)"
-              className="score-input"
-            />
-            <span className="score-unit">分</span>
+            ))}
           </div>
-          <button 
-            onClick={handleSaveScore}
-            className="btn btn-primary"
-            style={{ width: '100%', marginTop: '1rem' }}
-          >
-            保存评分
-          </button>
-        </div>
 
-        <div className="navigation-buttons">
-          {currentStage < stages.length - 1 ? (
+          <div className="score-section">
+            <h3>当前阶段评分</h3>
+            <p className="current-stage-name">{stages[currentStage].name}</p>
+            <div className="score-input-group">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={tempScore}
+                onChange={(e) => setTempScore(Number(e.target.value))}
+                placeholder="输入分数(0-100)"
+                className="score-input"
+              />
+              <span className="score-unit">分</span>
+            </div>
             <button 
-              onClick={handleNextStage}
-              className="btn"
-              style={{ width: '100%' }}
+              onClick={handleSaveScore}
+              className="btn btn-primary"
+              style={{ width: '100%', marginTop: '1rem' }}
             >
-              进入下一阶段 →
+              保存评分
             </button>
-          ) : (
-            <button 
-              onClick={finishInterview}
-              className="btn btn-success"
-              style={{ width: '100%' }}
-            >
-              结束面试
-            </button>
-          )}
+          </div>
+
+          <div className="navigation-buttons">
+            {currentStage < stages.length - 1 ? (
+              <button 
+                onClick={handleNextStage}
+                className="btn"
+                style={{ width: '100%' }}
+              >
+                进入下一阶段 →
+              </button>
+            ) : (
+              <button 
+                onClick={finishInterview}
+                className="btn btn-success"
+                style={{ width: '100%' }}
+              >
+                结束面试
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 主内容区域 */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="interview-container interviewer-container">
+        <div className="interview-container interviewer-container" style={{ maxWidth: isInRoom ? '900px' : '500px' }}>
           <div className="header">
-            <div>
-              <button
-                onClick={() => navigate('/')}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.9rem', padding: '0.5rem 1rem', marginRight: '1rem' }}
-              >
-                ← 返回首页
-              </button>
-              <h1 style={{ display: 'inline-block', margin: 0 }}>面试官界面</h1>
-            </div>
-            <button onClick={handleLogout} className="btn btn-danger">
+            <h1>面试官界面</h1>
+            <button className="btn btn-danger" onClick={() => {
+              stopCamera();
+              onLogout();
+              navigate('/');
+            }}>
               退出登录
             </button>
           </div>
 
-          <div className="video-container">
-            <h3>我的视频</h3>
-            {isCameraOn ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  width: '100%',
-                  maxWidth: '400px',
-                  height: 'auto',
-                  minHeight: '300px',
-                  border: '2px solid #007bff',
-                  borderRadius: '8px',
-                  backgroundColor: '#000',
-                  objectFit: 'cover'
-                }}
-              />
-            ) : (
-              <div style={{
-                width: '100%',
-                maxWidth: '400px',
-                height: '300px',
-                backgroundColor: '#f0f0f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                margin: '0 auto',
-                fontSize: '16px',
-                color: '#666'
-              }}>
-                摄像头未开启
+          {!isInRoom ? (
+            <div>
+              <div className="interview-info">
+                <p>请输入房间号开始面试</p>
               </div>
-            )}
-          </div>
 
-          <div className="text-center">
-            <button 
-              onClick={toggleCamera} 
-              className={`btn ${isCameraOn ? 'btn-danger' : ''}`}
-              style={{ fontSize: '16px', padding: '10px 20px' }}
-            >
-              {isCameraOn ? '关闭摄像头' : '开启摄像头'}
-            </button>
-          </div>
+              <div className="form-group">
+                <label>房间号:</label>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  placeholder="请输入房间号"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
 
-          {cameraError && (
-            <div className="error text-center" style={{ marginTop: '1rem' }}>
-              {cameraError}
+              <div className="text-center" style={{ marginTop: '1.5rem' }}>
+                <button className="btn" onClick={joinRoom}>
+                  进入房间
+                </button>
+                <button className="btn btn-secondary" onClick={() => navigate('/room/create')}>
+                  创建新房间
+                </button>
+                <button className="btn btn-secondary" onClick={() => navigate('/')}>
+                  返回首页
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="interview-info">
+                <p>房间号: {roomId}</p>
+                <p className="interview-tips">面试进行中 - 当前阶段: {stages[currentStage].name}</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: '1rem' }}>我的视频</h3>
+                  <div className="video-container">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        border: '2px solid #007bff',
+                        borderRadius: '8px',
+                        backgroundColor: '#000'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: '1rem' }}>面试者视频</h3>
+                  <div className="video-container">
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        border: '2px solid #28a745',
+                        borderRadius: '8px',
+                        backgroundColor: '#000'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <button 
+                  className={isCameraOn ? 'btn btn-danger' : 'btn'}
+                  onClick={isCameraOn ? stopCamera : startCamera}
+                >
+                  {isCameraOn ? '关闭摄像头' : '开启摄像头'}
+                </button>
+                <button className="btn btn-secondary" onClick={leaveRoom}>
+                  离开房间
+                </button>
+              </div>
+            </div>
+          )}
+
+          {message && (
+            <div style={{ 
+              marginTop: '1rem', 
+              padding: '0.75rem',
+              background: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '4px',
+              textAlign: 'center',
+              color: '#004085'
+            }}>
+              {message}
             </div>
           )}
         </div>
@@ -332,6 +481,7 @@ const Interviewer = ({ onLogout }) => {
               <button 
                 onClick={() => {
                   setShowFinalScore(false);
+                  leaveRoom();
                   navigate('/');
                 }}
                 className="btn"

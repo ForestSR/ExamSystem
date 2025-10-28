@@ -6,6 +6,7 @@ import Interview from './components/Interview';
 import Profile from './components/Profile';
 import Interviewee from './components/Interviewee';
 import Interviewer from './components/Interviewer';
+import RoomCreate from './components/RoomCreate';
 import './App.css';
 
 function App() {
@@ -80,6 +81,14 @@ function App() {
             element={
               isLoggedIn ? 
               <Interviewer onLogout={handleLogout} /> : 
+              <Navigate to="/login" />
+            }
+          />
+          <Route
+            path="/room/create"
+            element={
+              isLoggedIn ? 
+              <RoomCreate /> : 
               <Navigate to="/login" />
             }
           />

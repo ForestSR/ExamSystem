@@ -10,7 +10,8 @@ const Home = ({ isLoggedIn, userRole }) => {
     } else if (path === '/interview') {
       // 根据用户角色跳转到对应的面试入口
       if (userRole === 'interviewer') {
-        navigate('/interviewer');
+        // 面试官先去创建房间
+        navigate('/room/create');
       } else {
         navigate('/interviewee');
       }

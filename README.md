@@ -88,6 +88,18 @@ Exam_new/
    - 下载MongoDB Compass。下载地址：https://www.mongodb.com/try/download/compass
    - 点击`MongoDBCompass.exe`启动
    - 点击`Add new connection`添加连接，不用配置直接保存即可自动连接
+  
+**6.安装依赖（最好以管理员身份运行终端）**
+   ```bash
+      cd backend
+      npm install
+      npm install socket.io-client simple-peer
+   ```
+   ```bash
+      cd frontend
+      npm install
+      npm install socket.io
+   ```
 
 ## 启动程序
 
@@ -100,7 +112,6 @@ mongod -f <mongodb.conf的文件地址>
 
 ```bash
 cd backend
-npm install
 npm start
 ```
 
@@ -110,7 +121,6 @@ npm start
 
 ```bash
 cd frontend
-npm install
 npm start
 ```
 
