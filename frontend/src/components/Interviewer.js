@@ -44,14 +44,28 @@ const Interviewer = ({ onLogout }) => {
 
   useEffect(() => {
     return () => {
+      // 组件卸载时的清理
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+        try {
+          localStreamRef.current.getTracks().forEach(track => track.stop());
+        } catch (error) {
+          console.error('停止摄像头轨道时出错:', error);
+        }
       }
       if (socketRef.current) {
-        socketRef.current.disconnect();
+        try {
+          socketRef.current.disconnect();
+        } catch (error) {
+          console.error('断开Socket时出错:', error);
+        }
       }
       if (peerRef.current) {
-        peerRef.current.destroy();
+        try {
+          peerRef.current.removeAllListeners();
+          peerRef.current.destroy();
+        } catch (error) {
+          console.error('销毁Peer时出错:', error);
+        }
       }
     };
   }, []);
@@ -182,13 +196,37 @@ const Interviewer = ({ onLogout }) => {
   };
 
   const leaveRoom = () => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-    if (peerRef.current) {
-      peerRef.current.destroy();
-    }
+    // 先停止摄像头
     stopCamera();
+    
+    // 安全地断开 socket 连接
+    if (socketRef.current) {
+      try {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      } catch (error) {
+        console.error('断开Socket连接时出错:', error);
+      }
+    }
+    
+    // 安全地销毁 peer 连接
+    if (peerRef.current) {
+      try {
+        // 先移除所有事件监听器
+        peerRef.current.removeAllListeners();
+        // 然后销毁连接
+        peerRef.current.destroy();
+        peerRef.current = null;
+      } catch (error) {
+        console.error('销毁Peer连接时出错:', error);
+      }
+    }
+    
+    // 清理远程视频
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
     setIsInRoom(false);
     setRoomId('');
     setMessage('已离开房间');
