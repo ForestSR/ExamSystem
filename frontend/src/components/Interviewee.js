@@ -81,14 +81,24 @@ const Interviewee = ({ onLogout }) => {
       return;
     }
 
-    if (!isCameraOn) {
+    // 必须先开启摄像头，确保有本地流
+    if (!isCameraOn || !localStreamRef.current) {
+      setMessage('正在开启摄像头...');
       await startCamera();
+      // 等待一下确保流已就绪
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    if (!localStreamRef.current) {
+      setMessage('无法获取摄像头流，请检查权限');
+      return;
+    }
+
+    console.log('本地流已就绪，开始连接Socket');
     socketRef.current = io('http://localhost:5000');
 
     socketRef.current.on('connect', () => {
-      console.log('Socket连接成功');
+      console.log('Socket连接成功，Socket ID:', socketRef.current.id);
       const token = localStorage.getItem('token');
       const userId = JSON.parse(atob(token.split('.')[1])).userId;
       
@@ -99,28 +109,34 @@ const Interviewee = ({ onLogout }) => {
       });
       
       setIsInRoom(true);
-      setMessage(`已加入房间: ${roomId}`);
+      setMessage(`已加入房间: ${roomId}，等待面试官...`);
+      console.log('已发送join-room事件，用户ID:', userId);
     });
 
     socketRef.current.on('user-joined', ({ socketId, role }) => {
+      console.log('收到user-joined事件，用户角色:', role, 'Socket ID:', socketId);
       if (role === 'interviewer') {
-        setMessage('面试官已加入，正在连接...');
+        setMessage('面试官已加入，正在建立视频连接...');
+        console.log('开始创建Peer连接（作为发起方）');
         createPeerConnection(socketId, true);
       }
     });
 
     socketRef.current.on('offer', ({ offer, from }) => {
-      setMessage('收到连接请求...');
+      console.log('收到offer信号，来自:', from);
+      setMessage('收到连接请求，正在建立连接...');
       createPeerConnection(from, false, offer);
     });
 
     socketRef.current.on('answer', ({ answer }) => {
+      console.log('收到answer信号');
       if (peerRef.current) {
         peerRef.current.signal(answer);
       }
     });
 
     socketRef.current.on('ice-candidate', ({ candidate }) => {
+      console.log('收到ICE candidate');
       if (peerRef.current && candidate) {
         peerRef.current.signal(candidate);
       }
@@ -128,20 +144,38 @@ const Interviewee = ({ onLogout }) => {
   };
 
   const createPeerConnection = (targetSocketId, initiator, offerSignal = null) => {
+    console.log('创建Peer连接，发起方:', initiator, '目标Socket ID:', targetSocketId);
+    console.log('本地流状态:', localStreamRef.current ? '已就绪' : '未就绪');
+    
+    if (!localStreamRef.current) {
+      console.error('本地流不存在，无法创建Peer连接');
+      setMessage('本地摄像头未就绪，请重试');
+      return;
+    }
+
     const peer = new Peer({
       initiator: initiator,
       trickle: false,
       stream: localStreamRef.current,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
     });
 
     peer.on('signal', (signal) => {
+      console.log('生成信令:', signal.type);
       if (initiator) {
+        console.log('发送offer到:', targetSocketId);
         socketRef.current.emit('offer', {
           roomId: roomId,
           offer: signal,
           to: targetSocketId
         });
       } else {
+        console.log('发送answer到:', targetSocketId);
         socketRef.current.emit('answer', {
           roomId: roomId,
           answer: signal,
@@ -151,18 +185,25 @@ const Interviewee = ({ onLogout }) => {
     });
 
     peer.on('stream', (remoteStream) => {
+      console.log('收到远程流！', remoteStream);
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
         setMessage('视频连接成功！');
+        console.log('远程视频已设置');
       }
+    });
+
+    peer.on('connect', () => {
+      console.log('Peer连接已建立');
     });
 
     peer.on('error', (err) => {
       console.error('Peer连接错误:', err);
-      setMessage('视频连接失败，请重试');
+      setMessage('视频连接失败: ' + err.message);
     });
 
     if (offerSignal) {
+      console.log('处理收到的offer信号');
       peer.signal(offerSignal);
     }
 
